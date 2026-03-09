@@ -1,155 +1,168 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { GpuMatMul } from './matmul/GpuMatMul'
-import { JsMatMul } from './matmul/JsMatMul'
+import { useEffect, useMemo, useRef, useState } from "react";
+import { GpuMatMul } from "./matmul/GpuMatMul";
+import { JsMatMul } from "./matmul/JsMatMul";
 
 function msToPretty(ms: number | null) {
-  if (ms === null) return '—'
-  if (ms < 1) return `${(ms * 1000).toFixed(0)} µs`
-  if (ms < 1000) return `${ms.toFixed(2)} ms`
-  return `${(ms / 1000).toFixed(2)} s`
+  if (ms === null) return "—";
+  if (ms < 1) return `${(ms * 1000).toFixed(0)} µs`;
+  if (ms < 1000) return `${ms.toFixed(2)} ms`;
+  return `${(ms / 1000).toFixed(2)} s`;
 }
 
 function nextFrame() {
   return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => resolve())
-  })
+    requestAnimationFrame(() => resolve());
+  });
 }
 
 type Result = {
-  lastMs: number | null
-  avgMs: number | null
-  sample: number[]
-}
+  lastMs: number | null;
+  avgMs: number | null;
+  sample: number[];
+};
 
-const emptyResult: Result = { lastMs: null, avgMs: null, sample: [] }
+const emptyResult: Result = { lastMs: null, avgMs: null, sample: [] };
 
 export default function MatMulBenchmark() {
-  const [n, setN] = useState(1024)
-  const [running, setRunning] = useState(false)
-  const [status, setStatus] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [n, setN] = useState(1024);
+  const [running, setRunning] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const [cpuRes, setCpuRes] = useState<Result>(emptyResult)
-  const [gpuRes, setGpuRes] = useState<Result>(emptyResult)
+  const [cpuRes, setCpuRes] = useState<Result>(emptyResult);
+  const [gpuRes, setGpuRes] = useState<Result>(emptyResult);
 
-  const gpu = useRef<GpuMatMul | null>(null)
-  const cpu = useRef<JsMatMul | null>(null)
+  const gpu = useRef<GpuMatMul | null>(null);
+  const cpu = useRef<JsMatMul | null>(null);
 
-  const canUseWebGPU = useMemo(() => !!navigator.gpu, [])
+  const canUseWebGPU = useMemo(() => !!navigator.gpu, []);
 
   useEffect(() => {
     return () => {
-      gpu.current?.destroy()
-      cpu.current?.destroy()
-    }
-  }, [])
+      gpu.current?.destroy();
+      cpu.current?.destroy();
+    };
+  }, []);
 
   async function prepareCpu() {
-    if (!cpu.current) cpu.current = new JsMatMul()
-    cpu.current.init(n)
+    if (!cpu.current) cpu.current = new JsMatMul();
+    cpu.current.init(n);
   }
 
   async function prepareGpu() {
-    if (!canUseWebGPU) throw new Error('WebGPU not available in this browser.')
-    if (!gpu.current) gpu.current = new GpuMatMul()
-    await gpu.current.init(n)
+    if (!canUseWebGPU) throw new Error("WebGPU not available in this browser.");
+    if (!gpu.current) gpu.current = new GpuMatMul();
+    await gpu.current.init(n);
   }
 
   async function runBoth(iterations: number) {
-    if (running) return
-    setRunning(true)
-    setStatus('Initializing...')
-    setError(null)
-    setCpuRes(emptyResult)
-    setGpuRes(emptyResult)
+    if (running) return;
+    setRunning(true);
+    setStatus("Initializing...");
+    setError(null);
+    setCpuRes(emptyResult);
+    setGpuRes(emptyResult);
 
     try {
-      await nextFrame()
+      await nextFrame();
 
-      setStatus('Preparing GPU...')
-      await prepareGpu()
-      await nextFrame()
+      setStatus("Preparing GPU...");
+      await prepareGpu();
+      await nextFrame();
 
-      setStatus('Preparing CPU...')
-      await prepareCpu()
-      await nextFrame()
+      setStatus("Preparing CPU...");
+      await prepareCpu();
+      await nextFrame();
 
-      setStatus('Warming up GPU...')
-      const gpuWarm = await gpu.current!.runOnce()
-      setGpuRes((prev) => ({ ...prev, lastMs: gpuWarm.ms }))
-      await nextFrame()
+      setStatus("Warming up GPU...");
+      const gpuWarm = await gpu.current!.runOnce();
+      setGpuRes((prev) => ({ ...prev, lastMs: gpuWarm.ms }));
+      await nextFrame();
 
-      setStatus('Warming up CPU...')
-      const cpuWarm = cpu.current!.runOnce()
-      setCpuRes((prev) => ({ ...prev, lastMs: cpuWarm.ms }))
-      await nextFrame()
+      setStatus("Warming up CPU...");
+      const cpuWarm = cpu.current!.runOnce();
+      setCpuRes((prev) => ({ ...prev, lastMs: cpuWarm.ms }));
+      await nextFrame();
 
-      const cpuTimes: number[] = []
-      const gpuTimes: number[] = []
+      const cpuTimes: number[] = [];
+      const gpuTimes: number[] = [];
 
       for (let i = 0; i < iterations; i++) {
-        setStatus(`Running iteration ${i + 1} / ${iterations}...`)
+        setStatus(`Running iteration ${i + 1} / ${iterations}...`);
 
-        const gr = await gpu.current!.runOnce()
-        gpuTimes.push(gr.ms)
-        setGpuRes((prev) => ({ ...prev, lastMs: gr.ms }))
-        await nextFrame()
+        const gr = await gpu.current!.runOnce();
+        gpuTimes.push(gr.ms);
+        setGpuRes((prev) => ({ ...prev, lastMs: gr.ms }));
+        await nextFrame();
 
-        const cr = cpu.current!.runOnce()
-        cpuTimes.push(cr.ms)
-        setCpuRes((prev) => ({ ...prev, lastMs: cr.ms }))
-        await nextFrame()
+        const cr = cpu.current!.runOnce();
+        cpuTimes.push(cr.ms);
+        setCpuRes((prev) => ({ ...prev, lastMs: cr.ms }));
+        await nextFrame();
       }
 
-      const cpuAvg = cpuTimes.reduce((a, b) => a + b, 0) / cpuTimes.length
-      const gpuAvg = gpuTimes.reduce((a, b) => a + b, 0) / gpuTimes.length
+      const cpuAvg = cpuTimes.reduce((a, b) => a + b, 0) / cpuTimes.length;
+      const gpuAvg = gpuTimes.reduce((a, b) => a + b, 0) / gpuTimes.length;
 
       setGpuRes({
         lastMs: gpuTimes.at(-1) ?? null,
         avgMs: gpuAvg,
         sample: await gpu.current!.readBackSample(8),
-      })
-      await nextFrame()
+      });
+      await nextFrame();
 
       setCpuRes({
         lastMs: cpuTimes.at(-1) ?? null,
         avgMs: cpuAvg,
         sample: cpu.current!.sample(8),
-      })
+      });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Benchmark failed.')
+      setError(e instanceof Error ? e.message : "Benchmark failed.");
     } finally {
-      setStatus(null)
-      setRunning(false)
+      setStatus(null);
+      setRunning(false);
     }
   }
 
   const winnerBanner = (() => {
-    if (cpuRes.avgMs === null || gpuRes.avgMs === null) return null
-    const faster = cpuRes.avgMs < gpuRes.avgMs ? 'CPU' : 'GPU'
-    const ratio = faster === 'CPU' ? gpuRes.avgMs / cpuRes.avgMs : cpuRes.avgMs / gpuRes.avgMs
-    const color = faster === 'GPU' ? 'text-emerald-300 border-emerald-900/40 bg-emerald-950/20' : 'text-amber-300 border-amber-900/40 bg-amber-950/20'
+    if (cpuRes.avgMs === null || gpuRes.avgMs === null) return null;
+    const faster = cpuRes.avgMs < gpuRes.avgMs ? "CPU" : "GPU";
+    const ratio =
+      faster === "CPU"
+        ? gpuRes.avgMs / cpuRes.avgMs
+        : cpuRes.avgMs / gpuRes.avgMs;
+    const color =
+      faster === "GPU"
+        ? "text-emerald-300 border-emerald-900/40 bg-emerald-950/20"
+        : "text-amber-300 border-amber-900/40 bg-amber-950/20";
     return (
-      <div className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}>
-        {faster} was faster by <span className="font-bold">{ratio.toFixed(2)}x</span>
-        {' '}(avg {msToPretty(faster === 'GPU' ? gpuRes.avgMs : cpuRes.avgMs)} vs {msToPretty(faster === 'GPU' ? cpuRes.avgMs : gpuRes.avgMs)})
+      <div
+        className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}
+      >
+        {faster} was faster by{" "}
+        <span className="font-bold">{ratio.toFixed(2)}x</span> (avg{" "}
+        {msToPretty(faster === "GPU" ? gpuRes.avgMs : cpuRes.avgMs)} vs{" "}
+        {msToPretty(faster === "GPU" ? cpuRes.avgMs : gpuRes.avgMs)})
       </div>
-    )
-  })()
+    );
+  })();
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="px-6 py-3 border-b border-gray-800">
         <h2 className="text-lg font-semibold">Matrix Multiply</h2>
         <p className="text-xs text-gray-500 mt-1">
-          Runs CPU (JS) and GPU (WebGPU) back-to-back and shows results side-by-side.
+          Runs CPU (JS) and GPU (WebGPU) back-to-back and shows results
+          side-by-side.
         </p>
       </div>
 
       <div className="flex-1 overflow-hidden flex flex-col px-6 py-4 gap-3">
         <div className="flex flex-wrap gap-3 items-end shrink-0">
           <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1">Matrix size (N×N)</label>
+            <label className="text-xs text-gray-500 mb-1">
+              Matrix size (N×N)
+            </label>
             <select
               value={n}
               onChange={(e) => setN(parseInt(e.target.value, 10))}
@@ -210,18 +223,24 @@ export default function MatMulBenchmark() {
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded border border-gray-800 bg-gray-950/30 p-3">
                 <div className="text-xs text-gray-500">Last</div>
-                <div className="text-xl font-semibold mt-1">{msToPretty(cpuRes.lastMs)}</div>
+                <div className="text-xl font-semibold mt-1">
+                  {msToPretty(cpuRes.lastMs)}
+                </div>
               </div>
               <div className="rounded border border-gray-800 bg-gray-950/30 p-3">
                 <div className="text-xs text-gray-500">Avg</div>
-                <div className="text-xl font-semibold mt-1">{msToPretty(cpuRes.avgMs)}</div>
+                <div className="text-xl font-semibold mt-1">
+                  {msToPretty(cpuRes.avgMs)}
+                </div>
               </div>
             </div>
 
             <div className="mt-4">
               <div className="text-xs text-gray-500">Result sample</div>
               <div className="text-xs text-gray-400 mt-2 font-mono break-all">
-                {cpuRes.sample.length ? cpuRes.sample.map((x) => x.toFixed(3)).join(', ') : '—'}
+                {cpuRes.sample.length
+                  ? cpuRes.sample.map((x) => x.toFixed(3)).join(", ")
+                  : "—"}
               </div>
             </div>
           </div>
@@ -229,24 +248,32 @@ export default function MatMulBenchmark() {
           <div className="rounded border border-gray-800 bg-gray-900/30 p-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">WebGPU (GPU)</div>
-              <div className="text-xs text-gray-500">compute shader + tiled</div>
+              <div className="text-xs text-gray-500">
+                compute shader + tiled
+              </div>
             </div>
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <div className="rounded border border-gray-800 bg-gray-950/30 p-3">
                 <div className="text-xs text-gray-500">Last</div>
-                <div className="text-xl font-semibold mt-1">{msToPretty(gpuRes.lastMs)}</div>
+                <div className="text-xl font-semibold mt-1">
+                  {msToPretty(gpuRes.lastMs)}
+                </div>
               </div>
               <div className="rounded border border-gray-800 bg-gray-950/30 p-3">
                 <div className="text-xs text-gray-500">Avg</div>
-                <div className="text-xl font-semibold mt-1">{msToPretty(gpuRes.avgMs)}</div>
+                <div className="text-xl font-semibold mt-1">
+                  {msToPretty(gpuRes.avgMs)}
+                </div>
               </div>
             </div>
 
             <div className="mt-4">
               <div className="text-xs text-gray-500">Result sample</div>
               <div className="text-xs text-gray-400 mt-2 font-mono break-all">
-                {gpuRes.sample.length ? gpuRes.sample.map((x) => x.toFixed(3)).join(', ') : '—'}
+                {gpuRes.sample.length
+                  ? gpuRes.sample.map((x) => x.toFixed(3)).join(", ")
+                  : "—"}
               </div>
             </div>
           </div>
@@ -255,9 +282,10 @@ export default function MatMulBenchmark() {
         {winnerBanner}
 
         <div className="shrink-0 text-xs text-gray-500 leading-relaxed">
-          Tip: if results are still similar, increase N (e.g. 1536–2048). At small N, overhead and synchronization can dominate.
+          Tip: if results are still similar, increase N (e.g. 1536–2048). At
+          small N, overhead and synchronization can dominate.
         </div>
       </div>
     </div>
-  )
+  );
 }

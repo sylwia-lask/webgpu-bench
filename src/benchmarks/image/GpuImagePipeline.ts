@@ -33,10 +33,8 @@ export class GpuImagePipeline {
   private pPresent: GPURenderPipeline | null = null;
   private presentSampler: GPUSampler | null = null;
 
-  // OFFSCREEN render target we control
   private presentTex: GPUTexture | null = null;
 
-  // Intermediate copy destination we control
   private blitTex: GPUTexture | null = null;
 
   private width = 0;
@@ -52,7 +50,8 @@ export class GpuImagePipeline {
     this.width = width;
     this.height = height;
 
-    if (!navigator.gpu) throw new Error("WebGPU is not supported in this browser.");
+    if (!navigator.gpu)
+      throw new Error("WebGPU is not supported in this browser.");
 
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error("No WebGPU adapter found.");
