@@ -157,7 +157,7 @@ export class JsImagePipeline {
       d[o + 0] = v
       d[o + 1] = v
       d[o + 2] = v
-      d[o + 3] = 255
+      d[o + 3] = 255 
     }
     this.ctx.putImageData(out, 0, 0)
 

@@ -45,15 +45,37 @@ export default function ImageBenchmark() {
 
   // Load image once
   const imgBitmapRef = useRef<ImageBitmap | null>(null)
+  const [previewUrl, setPreviewUrl] = useState<string>('/lake.png')
+  const [imageName, setImageName] = useState<string>('lake.png')
+
+  async function loadImageFromUrl(url: string) {
+    const img = new Image()
+    img.src = url
+    await img.decode()
+    imgBitmapRef.current?.close()
+    imgBitmapRef.current = await createImageBitmap(img)
+  }
 
   useEffect(() => {
-    ;(async () => {
-      const img = new Image()
-      img.src = '/lake.png'
-      await img.decode()
-      imgBitmapRef.current = await createImageBitmap(img)
-    })().catch((e) => setError(e instanceof Error ? e.message : 'Failed to load image.'))
+    loadImageFromUrl('/lake.png').catch((e) =>
+      setError(e instanceof Error ? e.message : 'Failed to load image.')
+    )
   }, [])
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    setImageName(file.name)
+    setPreviewUrl((prev) => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return url
+    })
+    setCpuLast(null); setCpuAvg(null); setGpuLast(null); setGpuAvg(null)
+    loadImageFromUrl(url).catch((e) =>
+      setError(e instanceof Error ? e.message : 'Failed to load image.')
+    )
+  }
 
   useEffect(() => {
     const cpu = cpuCanvasRef.current
@@ -169,6 +191,32 @@ export default function ImageBenchmark() {
       </div>
 
       <div className="flex-1 overflow-auto px-6 py-6">
+        <div className="flex flex-wrap gap-4 items-start mb-5">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-gray-500">Source image</label>
+            <div className="flex items-center gap-3">
+              <img
+                src={previewUrl}
+                alt="source preview"
+                className="h-16 w-16 rounded border border-gray-700 object-cover bg-gray-900"
+              />
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-400 max-w-[160px] truncate">{imageName}</span>
+                <label className="cursor-pointer px-3 py-1.5 rounded border border-gray-700 hover:border-gray-500 text-xs text-gray-300 bg-gray-900">
+                  Choose image…
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={running}
+                    onChange={handleFileChange}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-3 items-end">
           <div className="flex flex-col">
             <label className="text-xs text-gray-500 mb-1">Resolution</label>
