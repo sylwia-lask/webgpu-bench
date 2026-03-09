@@ -28,7 +28,6 @@ export default function ParticleBenchmark() {
   const canUseWebGPU = useMemo(() => !!navigator.gpu, [])
 
   useEffect(() => {
-    // init canvases sizes once
     const cpuCanvas = cpuCanvasRef.current
     const gpuCanvas = gpuCanvasRef.current
     if (cpuCanvas) setupCanvasDpr(cpuCanvas, 520, 320)
@@ -51,7 +50,6 @@ export default function ParticleBenchmark() {
     const gpuCanvas = gpuCanvasRef.current
     if (!cpuCanvas || !gpuCanvas) return
 
-    // (re)create engines fresh
     cpuEngineRef.current?.destroy()
     gpuEngineRef.current?.destroy()
 
@@ -65,7 +63,6 @@ export default function ParticleBenchmark() {
 
     gpuEngineRef.current = new GpuParticles(gpuCanvas, setGpuFps, (msg) => setGpuErr(msg || ''))
 
-    // Start CPU immediately, GPU async init and start
     cpuEngineRef.current.start(count)
     await gpuEngineRef.current.start(count)
   }
@@ -75,6 +72,19 @@ export default function ParticleBenchmark() {
     gpuEngineRef.current?.stop()
     setRunning(false)
   }
+
+  const winnerBanner = (() => {
+    if (cpuFps === null || gpuFps === null) return null
+    const faster = gpuFps > cpuFps ? 'GPU' : 'CPU'
+    const ratio = faster === 'GPU' ? gpuFps / cpuFps : cpuFps / gpuFps
+    const color = faster === 'GPU' ? 'text-emerald-300 border-emerald-900/40 bg-emerald-950/20' : 'text-amber-300 border-amber-900/40 bg-amber-950/20'
+    return (
+      <div className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}>
+        {faster} was faster by <span className="font-bold">{ratio.toFixed(2)}x</span>
+        {' '}({faster === 'GPU' ? gpuFps : cpuFps} FPS vs {faster === 'GPU' ? cpuFps : gpuFps} FPS)
+      </div>
+    )
+  })()
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -153,21 +163,10 @@ export default function ParticleBenchmark() {
           </div>
         </div>
 
-        {cpuFps !== null && gpuFps !== null && (() => {
-          const faster = gpuFps > cpuFps ? 'GPU' : 'CPU'
-          const ratio = faster === 'GPU' ? gpuFps / cpuFps : cpuFps / gpuFps
-          const color = faster === 'GPU' ? 'text-emerald-300 border-emerald-900/40 bg-emerald-950/20' : 'text-amber-300 border-amber-900/40 bg-amber-950/20'
-          return (
-            <div className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}>
-              {faster} was faster by <span className="font-bold">{ratio.toFixed(2)}x</span>
-              {' '}({faster === 'GPU' ? gpuFps : cpuFps} FPS vs {faster === 'GPU' ? cpuFps : gpuFps} FPS)
-            </div>
-          )
-        })()}
+        {winnerBanner}
 
         <div className="shrink-0 text-xs text-gray-500 leading-relaxed">
-          Tip: jeśli wyniki są “dziwnie podobne”, sprawdź czy oba canvasy mają identyczny <code>width/height</code> (po DPR),
-          i zwiększ particles aż CPU zacznie spadać.
+          Tip: if results look suspiciously similar, verify both canvases have identical <code>width/height</code> (after DPR scaling), and increase the particle count until the CPU starts dropping frames.
         </div>
       </div>
     </div>

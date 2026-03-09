@@ -66,7 +66,6 @@ export default function MatMulBenchmark() {
     try {
       await nextFrame()
 
-      // Prepare GPU first so we can show something sooner
       setStatus('Preparing GPU...')
       await prepareGpu()
       await nextFrame()
@@ -75,13 +74,11 @@ export default function MatMulBenchmark() {
       await prepareCpu()
       await nextFrame()
 
-      // Warmup GPU first
       setStatus('Warming up GPU...')
       const gpuWarm = await gpu.current!.runOnce()
       setGpuRes((prev) => ({ ...prev, lastMs: gpuWarm.ms }))
       await nextFrame()
 
-      // Warmup CPU second
       setStatus('Warming up CPU...')
       const cpuWarm = cpu.current!.runOnce()
       setCpuRes((prev) => ({ ...prev, lastMs: cpuWarm.ms }))
@@ -93,13 +90,11 @@ export default function MatMulBenchmark() {
       for (let i = 0; i < iterations; i++) {
         setStatus(`Running iteration ${i + 1} / ${iterations}...`)
 
-        // GPU first
         const gr = await gpu.current!.runOnce()
         gpuTimes.push(gr.ms)
         setGpuRes((prev) => ({ ...prev, lastMs: gr.ms }))
         await nextFrame()
 
-        // CPU second
         const cr = cpu.current!.runOnce()
         cpuTimes.push(cr.ms)
         setCpuRes((prev) => ({ ...prev, lastMs: cr.ms }))
@@ -128,6 +123,19 @@ export default function MatMulBenchmark() {
       setRunning(false)
     }
   }
+
+  const winnerBanner = (() => {
+    if (cpuRes.avgMs === null || gpuRes.avgMs === null) return null
+    const faster = cpuRes.avgMs < gpuRes.avgMs ? 'CPU' : 'GPU'
+    const ratio = faster === 'CPU' ? gpuRes.avgMs / cpuRes.avgMs : cpuRes.avgMs / gpuRes.avgMs
+    const color = faster === 'GPU' ? 'text-emerald-300 border-emerald-900/40 bg-emerald-950/20' : 'text-amber-300 border-amber-900/40 bg-amber-950/20'
+    return (
+      <div className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}>
+        {faster} was faster by <span className="font-bold">{ratio.toFixed(2)}x</span>
+        {' '}(avg {msToPretty(faster === 'GPU' ? gpuRes.avgMs : cpuRes.avgMs)} vs {msToPretty(faster === 'GPU' ? cpuRes.avgMs : gpuRes.avgMs)})
+      </div>
+    )
+  })()
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -244,22 +252,10 @@ export default function MatMulBenchmark() {
           </div>
         </div>
 
-        {cpuRes.avgMs !== null && gpuRes.avgMs !== null && (() => {
-          const faster = cpuRes.avgMs < gpuRes.avgMs ? 'CPU' : 'GPU'
-          const ratio = faster === 'CPU'
-            ? gpuRes.avgMs / cpuRes.avgMs
-            : cpuRes.avgMs / gpuRes.avgMs
-          const color = faster === 'GPU' ? 'text-emerald-300 border-emerald-900/40 bg-emerald-950/20' : 'text-amber-300 border-amber-900/40 bg-amber-950/20'
-          return (
-            <div className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}>
-              {faster} was faster by <span className="font-bold">{ratio.toFixed(2)}x</span>
-              {' '}(avg {msToPretty(faster === 'GPU' ? gpuRes.avgMs : cpuRes.avgMs)} vs {msToPretty(faster === 'GPU' ? cpuRes.avgMs : gpuRes.avgMs)})
-            </div>
-          )
-        })()}
+        {winnerBanner}
 
         <div className="shrink-0 text-xs text-gray-500 leading-relaxed">
-          Tip: jeśli wyniki nadal podobne, zwiększ N (np. 1536–2048). Przy małym N narzut i synchronizacja mogą dominować.
+          Tip: if results are still similar, increase N (e.g. 1536–2048). At small N, overhead and synchronization can dominate.
         </div>
       </div>
     </div>

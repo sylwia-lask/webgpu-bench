@@ -309,7 +309,7 @@ export default function ImageBenchmark() {
         {winnerBanner}
 
         <div className="shrink-0 text-xs text-gray-500 leading-relaxed">
-          Tip: ustaw 1024+ i włącz blur + sobel + threshold — to jest pipeline, który najbardziej “zabija” CPU.
+          Tip: set it to 1024+ and enable blur + sobel + threshold - this is the pipeline that kills the CPU the most.
         </div>
       </div>
     </div>
