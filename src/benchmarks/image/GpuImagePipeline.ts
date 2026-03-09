@@ -16,11 +16,9 @@ type ErrCb = (msg: string) => void;
 
 export class GpuImagePipeline {
   private canvas: HTMLCanvasElement;
-  private onError: ErrCb;
 
   private device: GPUDevice | null = null;
   private context: GPUCanvasContext | null = null;
-  private format: GPUTextureFormat | null = null;
 
   private paramsBuf: GPUBuffer | null = null;
 
@@ -48,7 +46,6 @@ export class GpuImagePipeline {
 
   constructor(canvas: HTMLCanvasElement, onError: ErrCb) {
     this.canvas = canvas;
-    this.onError = onError;
   }
 
   async init(width: number, height: number): Promise<void> {
@@ -70,7 +67,6 @@ export class GpuImagePipeline {
     this.context = ctx;
 
     const format = navigator.gpu.getPreferredCanvasFormat();
-    this.format = format;
 
     // Surface: use as render target only (most reliable in Chrome/Dawn)
     ctx.configure({
@@ -379,7 +375,6 @@ export class GpuImagePipeline {
     this.presentSampler = null;
 
     this.context = null;
-    this.format = null;
     this.device = null;
   }
 }

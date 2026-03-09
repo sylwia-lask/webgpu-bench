@@ -11,14 +11,6 @@ const TABS = [
 
 type TabId = typeof TABS[number]['id']
 
-function PlaceholderTab({ label }: { label: string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center text-gray-600">
-      <p className="text-sm">{label} — coming soon</p>
-    </div>
-  )
-}
-
 export default function App() {
   const [active, setActive] = useState<TabId>('particles')
 

@@ -1,7 +1,6 @@
 import type { ImagePipelineFlags } from './GpuImagePipeline'
 
 export class JsImagePipeline {
-  private canvas: HTMLCanvasElement
   private ctx: CanvasRenderingContext2D
 
   private w = 0
@@ -12,7 +11,6 @@ export class JsImagePipeline {
   private b: Float32Array | null = null
 
   constructor(canvas: HTMLCanvasElement) {
-    this.canvas = canvas
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('Failed to get 2D context.')
     this.ctx = ctx

@@ -15,13 +15,11 @@ export class GpuMatMul {
   private paramsBuf: GPUBuffer | null = null
 
   private bindGroup: GPUBindGroup | null = null
-  private n: number = 0
   private workgroupsX = 0
   private workgroupsY = 0
 
   async init(n: number): Promise<void> {
     this.destroy()
-    this.n = n
 
     if (!navigator.gpu) throw new Error('WebGPU is not supported in this browser.')
 
@@ -152,7 +150,6 @@ export class GpuMatMul {
 
     if (this.device) this.device.destroy()
     this.device = null
-    this.n = 0
     this.workgroupsX = 0
     this.workgroupsY = 0
   }

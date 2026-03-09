@@ -45,7 +45,8 @@ export default function ImageBenchmark() {
 
   // Load image once
   const imgBitmapRef = useRef<ImageBitmap | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string>('/lake.png')
+  const defaultImage = `${import.meta.env.BASE_URL}lake.png`
+  const [previewUrl, setPreviewUrl] = useState<string>(defaultImage)
   const [imageName, setImageName] = useState<string>('lake.png')
 
   async function loadImageFromUrl(url: string) {
@@ -57,7 +58,7 @@ export default function ImageBenchmark() {
   }
 
   useEffect(() => {
-    loadImageFromUrl('/lake.png').catch((e) =>
+    loadImageFromUrl(defaultImage).catch((e) =>
       setError(e instanceof Error ? e.message : 'Failed to load image.')
     )
   }, [])
