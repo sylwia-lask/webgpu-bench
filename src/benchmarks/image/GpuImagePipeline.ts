@@ -12,8 +12,6 @@ export type ImagePipelineFlags = {
   threshold: boolean;
 };
 
-type ErrCb = (msg: string) => void;
-
 export class GpuImagePipeline {
   private canvas: HTMLCanvasElement;
 
@@ -44,7 +42,7 @@ export class GpuImagePipeline {
   private width = 0;
   private height = 0;
 
-  constructor(canvas: HTMLCanvasElement, onError: ErrCb) {
+  constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
   }
 
