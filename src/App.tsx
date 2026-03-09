@@ -23,7 +23,7 @@ export default function App() {
   const [active, setActive] = useState<TabId>('particles')
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100 flex flex-col">
+    <div className="h-screen bg-gray-950 text-gray-100 flex flex-col overflow-hidden">
       <header className="border-b border-gray-800 px-6 py-4 flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-xl font-bold tracking-tight">WebGPU Bench</h1>

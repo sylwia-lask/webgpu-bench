@@ -4,10 +4,10 @@ import { JsParticles } from './particles/JsParticles'
 
 function setupCanvasDpr(canvas: HTMLCanvasElement, cssW: number, cssH: number) {
   const dpr = window.devicePixelRatio || 1
-  canvas.style.width = `${cssW}px`
-  canvas.style.height = `${cssH}px`
   canvas.width = Math.floor(cssW * dpr)
   canvas.height = Math.floor(cssH * dpr)
+  canvas.style.width = '100%'
+  canvas.style.height = '100%'
   return dpr
 }
 
@@ -78,15 +78,15 @@ export default function ParticleBenchmark() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-5 border-b border-gray-800">
+      <div className="px-6 py-3 border-b border-gray-800">
         <h2 className="text-lg font-semibold">Particle Simulation</h2>
         <p className="text-xs text-gray-500 mt-1">
           CPU (Canvas2D) vs WebGPU (compute + instanced render). Same canvas size (DPR-aware).
         </p>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-6">
-        <div className="flex flex-wrap items-end gap-3">
+      <div className="flex-1 overflow-hidden flex flex-col px-6 py-3 gap-3">
+        <div className="flex flex-wrap items-end gap-3 shrink-0">
           <div className="flex flex-col">
             <label className="text-xs text-gray-500 mb-1">Particles</label>
             <select
@@ -126,34 +126,46 @@ export default function ParticleBenchmark() {
         </div>
 
         {gpuErr && (
-          <div className="mt-4 text-sm text-red-400 border border-red-900/40 bg-red-950/30 rounded p-3">
+          <div className="shrink-0 text-sm text-red-400 border border-red-900/40 bg-red-950/30 rounded p-3">
             {gpuErr}
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded border border-gray-800 bg-gray-900/30 p-4">
-            <div className="flex items-center justify-between">
+        <div className="flex-1 min-h-0 grid grid-cols-2 gap-3">
+          <div className="rounded border border-gray-800 bg-gray-900/30 p-3 flex flex-col min-h-0">
+            <div className="flex items-center justify-between shrink-0">
               <div className="text-sm font-semibold">JS (CPU) — Canvas2D</div>
               <div className="text-xs text-gray-500">FPS: {cpuFps ?? '—'}</div>
             </div>
-            <div className="mt-3 rounded border border-gray-800 overflow-hidden">
+            <div className="mt-2 flex-1 min-h-0 rounded border border-gray-800 overflow-hidden">
               <canvas ref={cpuCanvasRef} />
             </div>
           </div>
 
-          <div className="rounded border border-gray-800 bg-gray-900/30 p-4">
-            <div className="flex items-center justify-between">
+          <div className="rounded border border-gray-800 bg-gray-900/30 p-3 flex flex-col min-h-0">
+            <div className="flex items-center justify-between shrink-0">
               <div className="text-sm font-semibold">WebGPU (GPU) — compute + instancing</div>
               <div className="text-xs text-gray-500">FPS: {gpuFps ?? '—'}</div>
             </div>
-            <div className="mt-3 rounded border border-gray-800 overflow-hidden">
+            <div className="mt-2 flex-1 min-h-0 rounded border border-gray-800 overflow-hidden">
               <canvas ref={gpuCanvasRef} />
             </div>
           </div>
         </div>
 
-        <div className="mt-6 text-xs text-gray-500 leading-relaxed">
+        {cpuFps !== null && gpuFps !== null && (() => {
+          const faster = gpuFps > cpuFps ? 'GPU' : 'CPU'
+          const ratio = faster === 'GPU' ? gpuFps / cpuFps : cpuFps / gpuFps
+          const color = faster === 'GPU' ? 'text-emerald-300 border-emerald-900/40 bg-emerald-950/20' : 'text-amber-300 border-amber-900/40 bg-amber-950/20'
+          return (
+            <div className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}>
+              {faster} was faster by <span className="font-bold">{ratio.toFixed(2)}x</span>
+              {' '}({faster === 'GPU' ? gpuFps : cpuFps} FPS vs {faster === 'GPU' ? cpuFps : gpuFps} FPS)
+            </div>
+          )
+        })()}
+
+        <div className="shrink-0 text-xs text-gray-500 leading-relaxed">
           Tip: jeśli wyniki są “dziwnie podobne”, sprawdź czy oba canvasy mają identyczny <code>width/height</code> (po DPR),
           i zwiększ particles aż CPU zacznie spadać.
         </div>

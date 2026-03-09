@@ -9,6 +9,12 @@ function msToPretty(ms: number | null) {
   return `${(ms / 1000).toFixed(2)} s`
 }
 
+function nextFrame() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve())
+  })
+}
+
 type Result = {
   lastMs: number | null
   avgMs: number | null
@@ -20,6 +26,7 @@ const emptyResult: Result = { lastMs: null, avgMs: null, sample: [] }
 export default function MatMulBenchmark() {
   const [n, setN] = useState(1024)
   const [running, setRunning] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const [cpuRes, setCpuRes] = useState<Result>(emptyResult)
@@ -37,16 +44,12 @@ export default function MatMulBenchmark() {
     }
   }, [])
 
-  async function prepareBoth() {
-    setError(null)
-    setCpuRes(emptyResult)
-    setGpuRes(emptyResult)
-
-    // CPU
+  async function prepareCpu() {
     if (!cpu.current) cpu.current = new JsMatMul()
     cpu.current.init(n)
+  }
 
-    // GPU
+  async function prepareGpu() {
     if (!canUseWebGPU) throw new Error('WebGPU not available in this browser.')
     if (!gpu.current) gpu.current = new GpuMatMul()
     await gpu.current.init(n)
@@ -55,52 +58,88 @@ export default function MatMulBenchmark() {
   async function runBoth(iterations: number) {
     if (running) return
     setRunning(true)
+    setStatus('Initializing...')
+    setError(null)
+    setCpuRes(emptyResult)
+    setGpuRes(emptyResult)
 
     try {
-      await prepareBoth()
+      await nextFrame()
 
-      // Warmup both (important!)
-      cpu.current!.runOnce()
-      await gpu.current!.runOnce()
+      // Prepare GPU first so we can show something sooner
+      setStatus('Preparing GPU...')
+      await prepareGpu()
+      await nextFrame()
+
+      setStatus('Preparing CPU...')
+      await prepareCpu()
+      await nextFrame()
+
+      // Warmup GPU first
+      setStatus('Warming up GPU...')
+      const gpuWarm = await gpu.current!.runOnce()
+      setGpuRes((prev) => ({ ...prev, lastMs: gpuWarm.ms }))
+      await nextFrame()
+
+      // Warmup CPU second
+      setStatus('Warming up CPU...')
+      const cpuWarm = cpu.current!.runOnce()
+      setCpuRes((prev) => ({ ...prev, lastMs: cpuWarm.ms }))
+      await nextFrame()
 
       const cpuTimes: number[] = []
       const gpuTimes: number[] = []
 
       for (let i = 0; i < iterations; i++) {
-        // CPU
-        const cr = cpu.current!.runOnce()
-        cpuTimes.push(cr.ms)
-        setCpuRes((prev) => ({ ...prev, lastMs: cr.ms }))
+        setStatus(`Running iteration ${i + 1} / ${iterations}...`)
 
-        // GPU
+        // GPU first
         const gr = await gpu.current!.runOnce()
         gpuTimes.push(gr.ms)
         setGpuRes((prev) => ({ ...prev, lastMs: gr.ms }))
+        await nextFrame()
+
+        // CPU second
+        const cr = cpu.current!.runOnce()
+        cpuTimes.push(cr.ms)
+        setCpuRes((prev) => ({ ...prev, lastMs: cr.ms }))
+        await nextFrame()
       }
 
       const cpuAvg = cpuTimes.reduce((a, b) => a + b, 0) / cpuTimes.length
       const gpuAvg = gpuTimes.reduce((a, b) => a + b, 0) / gpuTimes.length
 
-      setCpuRes({ lastMs: cpuTimes.at(-1) ?? null, avgMs: cpuAvg, sample: cpu.current!.sample(8) })
-      setGpuRes({ lastMs: gpuTimes.at(-1) ?? null, avgMs: gpuAvg, sample: await gpu.current!.readBackSample(8) })
+      setGpuRes({
+        lastMs: gpuTimes.at(-1) ?? null,
+        avgMs: gpuAvg,
+        sample: await gpu.current!.readBackSample(8),
+      })
+      await nextFrame()
+
+      setCpuRes({
+        lastMs: cpuTimes.at(-1) ?? null,
+        avgMs: cpuAvg,
+        sample: cpu.current!.sample(8),
+      })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Benchmark failed.')
     } finally {
+      setStatus(null)
       setRunning(false)
     }
   }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-5 border-b border-gray-800">
+      <div className="px-6 py-3 border-b border-gray-800">
         <h2 className="text-lg font-semibold">Matrix Multiply</h2>
         <p className="text-xs text-gray-500 mt-1">
           Runs CPU (JS) and GPU (WebGPU) back-to-back and shows results side-by-side.
         </p>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-6">
-        <div className="flex flex-wrap gap-3 items-end">
+      <div className="flex-1 overflow-hidden flex flex-col px-6 py-4 gap-3">
+        <div className="flex flex-wrap gap-3 items-end shrink-0">
           <div className="flex flex-col">
             <label className="text-xs text-gray-500 mb-1">Matrix size (N×N)</label>
             <select
@@ -109,7 +148,9 @@ export default function MatMulBenchmark() {
               className="bg-gray-900 border border-gray-800 rounded px-3 py-2 text-sm text-gray-200"
             >
               {[256, 512, 768, 1024, 1536, 2048].map((v) => (
-                <option key={v} value={v}>{v}</option>
+                <option key={v} value={v}>
+                  {v}
+                </option>
               ))}
             </select>
           </div>
@@ -138,14 +179,20 @@ export default function MatMulBenchmark() {
           )}
         </div>
 
+        {status && (
+          <div className="shrink-0 text-sm text-indigo-300 border border-indigo-900/40 bg-indigo-950/20 rounded p-3 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+            {status}
+          </div>
+        )}
+
         {error && (
-          <div className="mt-5 text-sm text-red-400 border border-red-900/40 bg-red-950/30 rounded p-3">
+          <div className="shrink-0 text-sm text-red-400 border border-red-900/40 bg-red-950/30 rounded p-3">
             {error}
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
-          {/* CPU */}
+        <div className="grid grid-cols-2 gap-3 shrink-0">
           <div className="rounded border border-gray-800 bg-gray-900/30 p-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">JS (CPU)</div>
@@ -171,7 +218,6 @@ export default function MatMulBenchmark() {
             </div>
           </div>
 
-          {/* GPU */}
           <div className="rounded border border-gray-800 bg-gray-900/30 p-4">
             <div className="flex items-center justify-between">
               <div className="text-sm font-semibold">WebGPU (GPU)</div>
@@ -198,7 +244,21 @@ export default function MatMulBenchmark() {
           </div>
         </div>
 
-        <div className="mt-6 text-xs text-gray-500 leading-relaxed">
+        {cpuRes.avgMs !== null && gpuRes.avgMs !== null && (() => {
+          const faster = cpuRes.avgMs < gpuRes.avgMs ? 'CPU' : 'GPU'
+          const ratio = faster === 'CPU'
+            ? gpuRes.avgMs / cpuRes.avgMs
+            : cpuRes.avgMs / gpuRes.avgMs
+          const color = faster === 'GPU' ? 'text-emerald-300 border-emerald-900/40 bg-emerald-950/20' : 'text-amber-300 border-amber-900/40 bg-amber-950/20'
+          return (
+            <div className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}>
+              {faster} was faster by <span className="font-bold">{ratio.toFixed(2)}x</span>
+              {' '}(avg {msToPretty(faster === 'GPU' ? gpuRes.avgMs : cpuRes.avgMs)} vs {msToPretty(faster === 'GPU' ? cpuRes.avgMs : gpuRes.avgMs)})
+            </div>
+          )
+        })()}
+
+        <div className="shrink-0 text-xs text-gray-500 leading-relaxed">
           Tip: jeśli wyniki nadal podobne, zwiększ N (np. 1536–2048). Przy małym N narzut i synchronizacja mogą dominować.
         </div>
       </div>

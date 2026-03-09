@@ -4,10 +4,10 @@ import { JsImagePipeline } from './image/JsImagePipeline'
 
 function setupCanvasDpr(canvas: HTMLCanvasElement, cssW: number, cssH: number) {
   const dpr = window.devicePixelRatio || 1
-  canvas.style.width = `${cssW}px`
-  canvas.style.height = `${cssH}px`
   canvas.width = Math.floor(cssW * dpr)
   canvas.height = Math.floor(cssH * dpr)
+  canvas.style.width = '100%'
+  canvas.style.height = '100%'
   return dpr
 }
 
@@ -109,14 +109,10 @@ export default function ImageBenchmark() {
     if (!cpuCanvas || !gpuCanvas) throw new Error('Canvas not ready.')
     if (!imgBitmapRef.current) throw new Error('Image not loaded yet.')
 
-    // Make both canvases exactly sizePx x sizePx in *real pixels* (no CSS stretch)
-    cpuCanvas.style.width = `${sizePx}px`
-    cpuCanvas.style.height = `${sizePx}px`
+    // Make both canvases exactly sizePx x sizePx in *real pixels* (CSS display controlled by flexbox)
     cpuCanvas.width = sizePx
     cpuCanvas.height = sizePx
 
-    gpuCanvas.style.width = `${sizePx}px`
-    gpuCanvas.style.height = `${sizePx}px`
     gpuCanvas.width = sizePx
     gpuCanvas.height = sizePx
 
@@ -181,43 +177,50 @@ export default function ImageBenchmark() {
     setFlags((p) => ({ ...p, [key]: !p[key] }))
   }
 
+  const winnerBanner = (() => {
+    if (cpuAvg === null || gpuAvg === null) return null
+    const faster = gpuAvg < cpuAvg ? 'GPU' : 'CPU'
+    const ratio = faster === 'GPU' ? cpuAvg / gpuAvg : gpuAvg / cpuAvg
+    const color = faster === 'GPU' ? 'text-emerald-300 border-emerald-900/40 bg-emerald-950/20' : 'text-amber-300 border-amber-900/40 bg-amber-950/20'
+    return (
+      <div className={`shrink-0 text-sm font-medium border rounded p-3 ${color}`}>
+        {faster} was faster by <span className="font-bold">{ratio.toFixed(2)}x</span>
+        {' '}(avg {msPretty(faster === 'GPU' ? gpuAvg : cpuAvg)} vs {msPretty(faster === 'GPU' ? cpuAvg : gpuAvg)})
+      </div>
+    )
+  })()
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-5 border-b border-gray-800">
+      <div className="px-6 py-3 border-b border-gray-800">
         <h2 className="text-lg font-semibold">Image Processing</h2>
         <p className="text-xs text-gray-500 mt-1">
           Multi-pass pipeline: grayscale → blur (2×) → edge detect → threshold. JS (ImageData) vs WebGPU (ping-pong textures).
         </p>
       </div>
 
-      <div className="flex-1 overflow-auto px-6 py-6">
-        <div className="flex flex-wrap gap-4 items-start mb-5">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-gray-500">Source image</label>
-            <div className="flex items-center gap-3">
-              <img
-                src={previewUrl}
-                alt="source preview"
-                className="h-16 w-16 rounded border border-gray-700 object-cover bg-gray-900"
-              />
-              <div className="flex flex-col gap-1">
-                <span className="text-xs text-gray-400 max-w-[160px] truncate">{imageName}</span>
-                <label className="cursor-pointer px-3 py-1.5 rounded border border-gray-700 hover:border-gray-500 text-xs text-gray-300 bg-gray-900">
-                  Choose image…
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    disabled={running}
-                    onChange={handleFileChange}
-                  />
-                </label>
-              </div>
+      <div className="flex-1 overflow-hidden flex flex-col px-6 py-3 gap-3">
+        <div className="flex flex-wrap gap-3 items-end shrink-0">
+          <div className="flex items-center gap-2">
+            <img
+              src={previewUrl}
+              alt="source preview"
+              className="h-10 w-10 rounded border border-gray-700 object-cover bg-gray-900 shrink-0"
+            />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs text-gray-400 max-w-[140px] truncate">{imageName}</span>
+              <label className="cursor-pointer px-2 py-1 rounded border border-gray-700 hover:border-gray-500 text-xs text-gray-300 bg-gray-900">
+                Choose image…
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={running}
+                  onChange={handleFileChange}
+                />
+              </label>
             </div>
           </div>
-        </div>
-
-        <div className="flex flex-wrap gap-3 items-end">
           <div className="flex flex-col">
             <label className="text-xs text-gray-500 mb-1">Resolution</label>
             <select
@@ -276,34 +279,36 @@ export default function ImageBenchmark() {
         </div>
 
         {error && (
-          <div className="mt-4 text-sm text-red-400 border border-red-900/40 bg-red-950/30 rounded p-3">
+          <div className="shrink-0 text-sm text-red-400 border border-red-900/40 bg-red-950/30 rounded p-3">
             {error}
           </div>
         )}
 
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="rounded border border-gray-800 bg-gray-900/30 p-4">
-            <div className="flex items-center justify-between">
+        <div className="flex-1 min-h-0 grid grid-cols-2 gap-3">
+          <div className="rounded border border-gray-800 bg-gray-900/30 p-3 flex flex-col min-h-0">
+            <div className="flex items-center justify-between shrink-0">
               <div className="text-sm font-semibold">JS (CPU) — ImageData</div>
               <div className="text-xs text-gray-500">{msPretty(cpuLast)} (avg {msPretty(cpuAvg)})</div>
             </div>
-            <div className="mt-3 rounded border border-gray-800 overflow-hidden">
+            <div className="mt-2 flex-1 min-h-0 rounded border border-gray-800 overflow-hidden">
               <canvas ref={cpuCanvasRef} />
             </div>
           </div>
 
-          <div className="rounded border border-gray-800 bg-gray-900/30 p-4">
-            <div className="flex items-center justify-between">
+          <div className="rounded border border-gray-800 bg-gray-900/30 p-3 flex flex-col min-h-0">
+            <div className="flex items-center justify-between shrink-0">
               <div className="text-sm font-semibold">WebGPU (GPU) — Compute + Render</div>
               <div className="text-xs text-gray-500">{msPretty(gpuLast)} (avg {msPretty(gpuAvg)})</div>
             </div>
-            <div className="mt-3 rounded border border-gray-800 overflow-hidden">
+            <div className="mt-2 flex-1 min-h-0 rounded border border-gray-800 overflow-hidden">
               <canvas ref={gpuCanvasRef} />
             </div>
           </div>
         </div>
 
-        <div className="mt-6 text-xs text-gray-500 leading-relaxed">
+        {winnerBanner}
+
+        <div className="shrink-0 text-xs text-gray-500 leading-relaxed">
           Tip: ustaw 1024+ i włącz blur + sobel + threshold — to jest pipeline, który najbardziej “zabija” CPU.
         </div>
       </div>
