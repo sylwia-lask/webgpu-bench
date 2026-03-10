@@ -4,7 +4,7 @@ A browser-based benchmark suite comparing GPU (WebGPU) vs CPU (JavaScript) perfo
 
 **Live demo:** https://sylwia-lask.github.io/webgpu-bench/
 
-> Requires a browser with WebGPU support — Chrome 113+, Edge 113+, or Chrome Canary. Firefox and Safari have limited support.
+> Requires a browser with WebGPU support — Chrome 113+, Edge 113+, modern Firefox and Safari.
 
 ---
 

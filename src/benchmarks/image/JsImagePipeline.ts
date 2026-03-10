@@ -20,8 +20,8 @@ export class JsImagePipeline {
     this.w = w;
     this.h = h;
     this.src = null;
-    this.a = new Float32Array(w * h); 
-    this.b = new Float32Array(w * h);
+    this.a = new Float32Array(w * h * 3);
+    this.b = new Float32Array(w * h * 3);
   }
 
   setSourceFromImageData(img: ImageData): void {
@@ -37,19 +37,25 @@ export class JsImagePipeline {
     const w = this.w;
     const h = this.h;
     const src = this.src;
-    const a = this.a;
-    const b = this.b;
+    let cur = this.a;
+    let tmp = this.b;
 
-    if (flags.grayscale || flags.blur || flags.sobel || flags.threshold) {
-      for (let y = 0; y < h; y++) {
-        for (let x = 0; x < w; x++) {
-          const i = y * w + x;
-          const o = i * 4;
-          const r = src[o + 0] / 255;
-          const g = src[o + 1] / 255;
-          const bb = src[o + 2] / 255;
-          a[i] = 0.2126 * r + 0.7152 * g + 0.0722 * bb;
-        }
+    // Load source as RGB (3 floats per pixel)
+    for (let i = 0; i < w * h; i++) {
+      cur[i * 3 + 0] = src[i * 4 + 0] / 255;
+      cur[i * 3 + 1] = src[i * 4 + 1] / 255;
+      cur[i * 3 + 2] = src[i * 4 + 2] / 255;
+    }
+
+    if (flags.grayscale) {
+      for (let i = 0; i < w * h; i++) {
+        const luma =
+          0.2126 * cur[i * 3 + 0] +
+          0.7152 * cur[i * 3 + 1] +
+          0.0722 * cur[i * 3 + 2];
+        cur[i * 3 + 0] = luma;
+        cur[i * 3 + 1] = luma;
+        cur[i * 3 + 2] = luma;
       }
     }
 
@@ -60,6 +66,7 @@ export class JsImagePipeline {
       const w3 = 0.054054;
       const w4 = 0.016216;
 
+      // Horizontal pass: cur -> tmp
       for (let y = 0; y < h; y++) {
         const row = y * w;
         for (let x = 0; x < w; x++) {
@@ -71,21 +78,23 @@ export class JsImagePipeline {
           const xp3 = Math.min(w - 1, x + 3);
           const xm4 = Math.max(0, x - 4);
           const xp4 = Math.min(w - 1, x + 4);
-
-          const i = row + x;
-          b[i] =
-            a[row + x] * w0 +
-            a[row + xm1] * w1 +
-            a[row + xp1] * w1 +
-            a[row + xm2] * w2 +
-            a[row + xp2] * w2 +
-            a[row + xm3] * w3 +
-            a[row + xp3] * w3 +
-            a[row + xm4] * w4 +
-            a[row + xp4] * w4;
+          const dst = (row + x) * 3;
+          for (let c = 0; c < 3; c++) {
+            tmp[dst + c] =
+              cur[(row + x) * 3 + c] * w0 +
+              cur[(row + xm1) * 3 + c] * w1 +
+              cur[(row + xp1) * 3 + c] * w1 +
+              cur[(row + xm2) * 3 + c] * w2 +
+              cur[(row + xp2) * 3 + c] * w2 +
+              cur[(row + xm3) * 3 + c] * w3 +
+              cur[(row + xp3) * 3 + c] * w3 +
+              cur[(row + xm4) * 3 + c] * w4 +
+              cur[(row + xp4) * 3 + c] * w4;
+          }
         }
       }
 
+      // Vertical pass: tmp -> cur
       for (let y = 0; y < h; y++) {
         const ym1 = Math.max(0, y - 1);
         const yp1 = Math.min(h - 1, y + 1);
@@ -95,70 +104,79 @@ export class JsImagePipeline {
         const yp3 = Math.min(h - 1, y + 3);
         const ym4 = Math.max(0, y - 4);
         const yp4 = Math.min(h - 1, y + 4);
-
         for (let x = 0; x < w; x++) {
-          const i = y * w + x;
-          a[i] =
-            b[y * w + x] * w0 +
-            b[ym1 * w + x] * w1 +
-            b[yp1 * w + x] * w1 +
-            b[ym2 * w + x] * w2 +
-            b[yp2 * w + x] * w2 +
-            b[ym3 * w + x] * w3 +
-            b[yp3 * w + x] * w3 +
-            b[ym4 * w + x] * w4 +
-            b[yp4 * w + x] * w4;
+          const dst = (y * w + x) * 3;
+          for (let c = 0; c < 3; c++) {
+            cur[dst + c] =
+              tmp[(y * w + x) * 3 + c] * w0 +
+              tmp[(ym1 * w + x) * 3 + c] * w1 +
+              tmp[(yp1 * w + x) * 3 + c] * w1 +
+              tmp[(ym2 * w + x) * 3 + c] * w2 +
+              tmp[(yp2 * w + x) * 3 + c] * w2 +
+              tmp[(ym3 * w + x) * 3 + c] * w3 +
+              tmp[(yp3 * w + x) * 3 + c] * w3 +
+              tmp[(ym4 * w + x) * 3 + c] * w4 +
+              tmp[(yp4 * w + x) * 3 + c] * w4;
+          }
         }
       }
     }
 
     if (flags.sobel) {
-      const get = (x: number, y: number) => {
+      const luma = (x: number, y: number) => {
         x = Math.max(0, Math.min(w - 1, x));
         y = Math.max(0, Math.min(h - 1, y));
-        return a[y * w + x];
+        const i = (y * w + x) * 3;
+        return 0.2126 * cur[i] + 0.7152 * cur[i + 1] + 0.0722 * cur[i + 2];
       };
 
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
-          const tl = get(x - 1, y - 1);
-          const t = get(x + 0, y - 1);
-          const tr = get(x + 1, y - 1);
-          const l = get(x - 1, y + 0);
-          const r = get(x + 1, y + 0);
-          const bl = get(x - 1, y + 1);
-          const b0 = get(x + 0, y + 1);
-          const br = get(x + 1, y + 1);
+          const tl = luma(x - 1, y - 1);
+          const t = luma(x + 0, y - 1);
+          const tr = luma(x + 1, y - 1);
+          const l = luma(x - 1, y + 0);
+          const r = luma(x + 1, y + 0);
+          const bl = luma(x - 1, y + 1);
+          const b0 = luma(x + 0, y + 1);
+          const br = luma(x + 1, y + 1);
 
-          const gx = -1 * tl + 1 * tr + -2 * l + 2 * r + -1 * bl + 1 * br;
-          const gy = -1 * tl + -2 * t + -1 * tr + 1 * bl + 2 * b0 + 1 * br;
+          const gx = -tl + tr - 2 * l + 2 * r - bl + br;
+          const gy = -tl - 2 * t - tr + bl + 2 * b0 + br;
 
-          const mag = Math.sqrt(gx * gx + gy * gy);
-          b[y * w + x] = Math.max(0, Math.min(1, mag * 1.2));
+          const e = Math.max(0, Math.min(1, Math.sqrt(gx * gx + gy * gy) * 1.2));
+          const dst = (y * w + x) * 3;
+          tmp[dst + 0] = e;
+          tmp[dst + 1] = e;
+          tmp[dst + 2] = e;
         }
       }
 
-      // swap b -> a (so next pass reads from a)
-      a.set(b);
+      [cur, tmp] = [tmp, cur];
     }
 
     if (flags.threshold) {
       const thr = 0.35;
-      for (let i = 0; i < a.length; i++) {
-        a[i] = a[i] > thr ? 1 : 0;
+      for (let i = 0; i < w * h; i++) {
+        const luma =
+          0.2126 * cur[i * 3 + 0] +
+          0.7152 * cur[i * 3 + 1] +
+          0.0722 * cur[i * 3 + 2];
+        const v = luma > thr ? 1 : 0;
+        cur[i * 3 + 0] = v;
+        cur[i * 3 + 1] = v;
+        cur[i * 3 + 2] = v;
       }
     }
 
-    // Present to canvas (convert grayscale a[] to RGBA)
+    // Present to canvas (convert RGB float array to RGBA)
     const out = new ImageData(w, h);
     const d = out.data;
-    for (let i = 0; i < a.length; i++) {
-      const v = Math.max(0, Math.min(255, Math.floor(a[i] * 255)));
-      const o = i * 4;
-      d[o + 0] = v;
-      d[o + 1] = v;
-      d[o + 2] = v;
-      d[o + 3] = 255;
+    for (let i = 0; i < w * h; i++) {
+      d[i * 4 + 0] = Math.max(0, Math.min(255, Math.floor(cur[i * 3 + 0] * 255)));
+      d[i * 4 + 1] = Math.max(0, Math.min(255, Math.floor(cur[i * 3 + 1] * 255)));
+      d[i * 4 + 2] = Math.max(0, Math.min(255, Math.floor(cur[i * 3 + 2] * 255)));
+      d[i * 4 + 3] = 255;
     }
     this.ctx.putImageData(out, 0, 0);
 

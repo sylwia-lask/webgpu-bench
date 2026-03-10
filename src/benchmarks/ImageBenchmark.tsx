@@ -207,6 +207,8 @@ export default function ImageBenchmark() {
     );
   })();
 
+  const noPassSelected = !flags.grayscale && !flags.blur && !flags.sobel && !flags.threshold;
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="px-6 py-3 border-b border-gray-800">
@@ -259,14 +261,14 @@ export default function ImageBenchmark() {
 
           <div className="flex gap-2">
             <button
-              disabled={running}
+              disabled={running || noPassSelected}
               onClick={() => runBoth(3)}
               className="px-4 py-2 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-sm font-medium"
             >
               Run both ×3
             </button>
             <button
-              disabled={running}
+              disabled={running || noPassSelected}
               onClick={() => runBoth(10)}
               className="px-4 py-2 rounded border border-gray-800 hover:border-gray-700 disabled:opacity-50 text-sm font-medium"
             >
