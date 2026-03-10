@@ -94,7 +94,6 @@ export class GpuImagePipeline {
         GPUTextureUsage.RENDER_ATTACHMENT,
     });
 
-    // Ping/pong (compute)
     const ppUsage =
       GPUTextureUsage.TEXTURE_BINDING |
       GPUTextureUsage.STORAGE_BINDING |
@@ -119,14 +118,12 @@ export class GpuImagePipeline {
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
     });
 
-    // Intermediate copy destination + sampled in the final blit render pass
     this.blitTex = device.createTexture({
       size: { width, height },
       format,
       usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING,
     });
 
-    // Compute pipelines
     this.pGray = device.createComputePipeline({
       layout: "auto",
       compute: {
@@ -167,7 +164,6 @@ export class GpuImagePipeline {
       },
     });
 
-    // Present pipeline (fullscreen triangle)
     const presentModule = device.createShaderModule({ code: presentWgsl });
     this.pPresent = device.createRenderPipeline({
       layout: "auto",
@@ -283,7 +279,6 @@ export class GpuImagePipeline {
 
     const finalTex = anyEnabled ? curIn : srcTex;
 
-    // PASS 1: render finalTex -> presentTex
     const presentBG = device.createBindGroup({
       layout: this.pPresent!.getBindGroupLayout(0),
       entries: [
@@ -308,14 +303,12 @@ export class GpuImagePipeline {
     pass1.draw(3);
     pass1.end();
 
-    // COPY: presentTex -> blitTex
     enc.copyTextureToTexture(
       { texture: presentTex },
       { texture: blitTex },
       { width: this.width, height: this.height },
     );
 
-    // PASS 2: render blitTex -> canvas
     const blitBG = device.createBindGroup({
       layout: this.pPresent!.getBindGroupLayout(0),
       entries: [

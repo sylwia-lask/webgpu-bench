@@ -28,7 +28,6 @@ export default function App() {
         </span>
       </header>
 
-      {/* Tabs */}
       <nav className="border-b border-gray-800 px-6 shrink-0">
         <div className="flex gap-1">
           {TABS.map((tab) => (
@@ -48,7 +47,6 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Tab content */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {active === "particles" && <ParticleBenchmark />}
         {active === "matrix" && <MatMulBenchmark />}

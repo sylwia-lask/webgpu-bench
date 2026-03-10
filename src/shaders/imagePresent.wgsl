@@ -8,7 +8,6 @@ struct VSOut {
 
 @vertex
 fn vs_main(@builtin(vertex_index) vid: u32) -> VSOut {
-  // Fullscreen triangle
   var pos = array<vec2<f32>, 3>(
     vec2<f32>(-1.0, -1.0),
     vec2<f32>( 3.0, -1.0),

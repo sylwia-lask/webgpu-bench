@@ -31,7 +31,6 @@ export class GpuMatMul {
 
     const device = this.device;
 
-    // Pipeline
     this.pipeline = device.createComputePipeline({
       layout: "auto",
       compute: {
@@ -41,7 +40,6 @@ export class GpuMatMul {
     });
     this.bindGroupLayout = this.pipeline.getBindGroupLayout(0);
 
-    // Buffers
     const count = n * n;
     const bytes = count * 4;
 
@@ -72,7 +70,6 @@ export class GpuMatMul {
     device.queue.writeBuffer(this.aBuf, 0, A);
     device.queue.writeBuffer(this.bBuf, 0, B);
 
-    // Params (u32 n) -> we keep uniform 16 bytes aligned
     this.paramsBuf = device.createBuffer({
       size: 16,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -91,7 +88,6 @@ export class GpuMatMul {
       ],
     });
 
-    // Workgroups for TILE=16
     this.workgroupsX = Math.ceil(n / 16);
     this.workgroupsY = Math.ceil(n / 16);
   }
@@ -118,7 +114,6 @@ export class GpuMatMul {
 
     device.queue.submit([enc.finish()]);
 
-    // Wait for completion (important for timing!)
     await device.queue.onSubmittedWorkDone();
 
     const t1 = performance.now();

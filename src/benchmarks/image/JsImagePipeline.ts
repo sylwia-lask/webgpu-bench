@@ -20,7 +20,7 @@ export class JsImagePipeline {
     this.w = w;
     this.h = h;
     this.src = null;
-    this.a = new Float32Array(w * h); // grayscale space
+    this.a = new Float32Array(w * h); 
     this.b = new Float32Array(w * h);
   }
 
@@ -40,7 +40,6 @@ export class JsImagePipeline {
     const a = this.a;
     const b = this.b;
 
-    // 1) Grayscale (or just luma baseline)
     if (flags.grayscale || flags.blur || flags.sobel || flags.threshold) {
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
@@ -54,9 +53,7 @@ export class JsImagePipeline {
       }
     }
 
-    // 2) Blur (separable 9-tap)
     if (flags.blur) {
-      // blur X: a -> b
       const w0 = 0.227027;
       const w1 = 0.1945946;
       const w2 = 0.1216216;
@@ -89,7 +86,6 @@ export class JsImagePipeline {
         }
       }
 
-      // blur Y: b -> a
       for (let y = 0; y < h; y++) {
         const ym1 = Math.max(0, y - 1);
         const yp1 = Math.min(h - 1, y + 1);
@@ -116,7 +112,6 @@ export class JsImagePipeline {
       }
     }
 
-    // 3) Sobel (a -> b)
     if (flags.sobel) {
       const get = (x: number, y: number) => {
         x = Math.max(0, Math.min(w - 1, x));
@@ -147,7 +142,6 @@ export class JsImagePipeline {
       a.set(b);
     }
 
-    // 4) Threshold (a -> a)
     if (flags.threshold) {
       const thr = 0.35;
       for (let i = 0; i < a.length; i++) {

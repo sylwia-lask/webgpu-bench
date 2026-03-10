@@ -1,7 +1,7 @@
 import computeWgsl from "../../shaders/particlesCompute.wgsl?raw";
 import renderWgsl from "../../shaders/particlesRenderInstanced.wgsl?raw";
 
-const STRIDE = 4; // x,y,vx,vy
+const STRIDE = 4; 
 const BYTES = STRIDE * 4;
 const SPEED = 2;
 
@@ -55,7 +55,7 @@ export class GpuParticles {
       await this.init(count);
       this.fpsTimestamps = [];
       this.lastFpsUpdate = 0;
-      this.onError(""); // clear
+      this.onError(""); 
       this.rafId = requestAnimationFrame(this.frame);
     } catch (e) {
       this.onError(e instanceof Error ? e.message : "WebGPU init failed.");
@@ -83,7 +83,6 @@ export class GpuParticles {
   private async init(count: number): Promise<void> {
     const canvas = this.canvas;
 
-    // NOTE: zakładamy że canvas.width/height już są w “real pixels” (DPR applied)
     const W = canvas.width;
     const H = canvas.height;
 
@@ -114,7 +113,6 @@ export class GpuParticles {
     });
     device.queue.writeBuffer(particleBuf, 0, data);
 
-    // Params uniform (16 bytes aligned): width(f32), height(f32), count(u32), pad(u32)
     const paramsBuf = device.createBuffer({
       size: 16,
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -124,7 +122,6 @@ export class GpuParticles {
     new Uint32Array(paramsRaw, 8, 1).set([count]);
     device.queue.writeBuffer(paramsBuf, 0, paramsRaw);
 
-    // Pipelines
     const computePipeline = device.createComputePipeline({
       layout: "auto",
       compute: {
@@ -182,14 +179,12 @@ export class GpuParticles {
 
     const enc = g.device.createCommandEncoder();
 
-    // Compute
     const cp = enc.beginComputePass();
     cp.setPipeline(g.computePipeline);
     cp.setBindGroup(0, g.computeBG);
     cp.dispatchWorkgroups(g.workgroups);
     cp.end();
 
-    // Render
     const rp = enc.beginRenderPass({
       colorAttachments: [
         {

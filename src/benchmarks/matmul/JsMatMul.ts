@@ -39,7 +39,6 @@ export class JsMatMul {
 
     const t0 = performance.now();
 
-    // Tiled matrix multiply (block size 32 tends to be ok in JS)
     const BS = 32;
     for (let ii = 0; ii < n; ii += BS) {
       for (let kk = 0; kk < n; kk += BS) {

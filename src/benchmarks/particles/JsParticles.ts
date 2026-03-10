@@ -1,4 +1,4 @@
-const STRIDE = 4; // x,y,vx,vy
+const STRIDE = 4; 
 const SPEED = 2;
 
 type FpsCb = (fps: number | null) => void;
@@ -63,7 +63,6 @@ export class JsParticles {
     const W = this.canvas.width;
     const H = this.canvas.height;
 
-    // update
     for (let i = 0; i < this.count; i++) {
       const o = i * STRIDE;
       buf[o + 0] += buf[o + 2];
@@ -87,7 +86,6 @@ export class JsParticles {
       }
     }
 
-    // render
     const ctx = this.ctx;
     ctx.fillStyle = "#030712";
     ctx.fillRect(0, 0, W, H);
